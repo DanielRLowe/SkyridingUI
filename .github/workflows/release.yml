@@ -24,15 +24,21 @@ jobs:
       - name: Create release package
         run: |
           cd ..
+          find SkyridingUI -name .DS_Store -print -delete
           zip -r -X "SkyridingUI_${{ steps.version.outputs.version }}.zip" SkyridingUI \
             -x "SkyridingUI/.git/*" \
             -x "SkyridingUI/.github/*" \
             -x "SkyridingUI/.gitignore" \
             -x "SkyridingUI/release.sh" \
+            -x "SkyridingUI/setup_git.sh" \
+            -x "SkyridingUI/SETUP_GUIDE.md" \
+            -x "SkyridingUI/QUICK_REFERENCE.sh" \
             -x "SkyridingUI/*.py" \
+            -x "SkyridingUI/*.svg" \
             -x "SkyridingUI/Textures/*.svg" \
             -x "SkyridingUI/.DS_Store" \
             -x "SkyridingUI/*/.DS_Store" \
+            -x "SkyridingUI/__MACOSX/*" \
             -x "SkyridingUI/.pkgmeta" \
             -x "SkyridingUI/README.md"
           mv "SkyridingUI_${{ steps.version.outputs.version }}.zip" SkyridingUI/
