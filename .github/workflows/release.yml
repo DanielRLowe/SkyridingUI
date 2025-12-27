@@ -82,7 +82,9 @@ jobs:
           changelog: ${{ steps.changelog.outputs.changelog }}
           changelog_type: markdown
           game_versions: |
-            WoW:Retail
+            11.0.7
+            12.0.0
+            12.0.1
           release_type: release
           token: ${{ secrets.CURSEFORGE_TOKEN }}
 
