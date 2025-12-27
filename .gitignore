@@ -15,4 +15,5 @@ __pycache__/
 # Scripts
 release.sh
 setup_git.sh
+QUICK_REFERENCE.sh
 SETUP_GUIDE.md
