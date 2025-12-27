@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(grep "^## Version:" SkyridingUI.toc | sed 's/^## Version: //')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Create release package
+        run: |
+          cd ..
+          zip -r -X "SkyridingUI_${{ steps.version.outputs.version }}.zip" SkyridingUI \
+            -x "SkyridingUI/.git/*" \
+            -x "SkyridingUI/.github/*" \
+            -x "SkyridingUI/.gitignore" \
+            -x "SkyridingUI/release.sh" \
+            -x "SkyridingUI/*.py" \
+            -x "SkyridingUI/Textures/*.svg" \
+            -x "SkyridingUI/.DS_Store" \
+            -x "SkyridingUI/*/.DS_Store" \
+            -x "SkyridingUI/.pkgmeta" \
+            -x "SkyridingUI/README.md"
+          mv "SkyridingUI_${{ steps.version.outputs.version }}.zip" SkyridingUI/
+
+      - name: Extract changelog
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          CHANGELOG=$(awk -v ver="$VERSION" '
+            /^## Version '"$VERSION"'/ {found=1; next}
+            found && /^## Version/ {exit}
+            found && NF {print}
+          ' CHANGELOG.md)
+          
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="Release $VERSION"
+          fi
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: SkyridingUI ${{ steps.version.outputs.version }}
+          body: ${{ steps.changelog.outputs.changelog }}
+          files: SkyridingUI_${{ steps.version.outputs.version }}.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to CurseForge
+        if: vars.CURSEFORGE_PROJECT_ID != ''
+        uses: itsmeow/curseforge-upload@v3
+        with:
+          project_id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          game_endpoint: wow
+          file_path: SkyridingUI_${{ steps.version.outputs.version }}.zip
+          changelog: ${{ steps.changelog.outputs.changelog }}
+          changelog_type: markdown
+          game_versions: |
+            WoW:Retail
+          release_type: release
+          token: ${{ secrets.CURSEFORGE_TOKEN }}
+
+      - name: Upload to Wago
+        if: vars.WAGO_PROJECT_ID != ''
+        run: |
+          curl -X POST "https://addons.wago.io/api/projects/${{ vars.WAGO_PROJECT_ID }}/version" \
+            -H "Authorization: Bearer ${{ secrets.WAGO_API_TOKEN }}" \
+            -H "Accept: application/json" \
+            -F "file=@SkyridingUI_${{ steps.version.outputs.version }}.zip" \
+            -F "changelog=${{ steps.changelog.outputs.changelog }}" \
+            -F "stability=stable"

@@ -1,0 +1,15 @@
+package-as: SkyridingUI
+
+enable-nolib-creation: no
+
+ignore:
+  - .git
+  - .gitignore
+  - README.md
+  - .pkgmeta
+  - release.sh
+  - "*.py"
+  - "*.svg"
+  - .DS_Store
+
+manual-changelog: CHANGELOG.md

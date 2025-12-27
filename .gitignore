@@ -1,0 +1,18 @@
+# Python files
+*.py
+*.pyc
+__pycache__/
+
+# SVG source files
+*.svg
+
+# macOS
+.DS_Store
+
+# Build/release artifacts
+*.zip
+
+# Scripts
+release.sh
+setup_git.sh
+SETUP_GUIDE.md
