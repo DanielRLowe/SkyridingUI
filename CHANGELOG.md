@@ -1,5 +1,12 @@
 # SkyridingUI Changelog
 
+## Version 1.4.6 — Circular Speed Ring Visibility Fix
+
+### Bug Fixes
+- **Fixed Circular mode speed ring not appearing**: Speed ring segments now properly initialize with correct alpha values when settings are applied (segments were created with alpha 0 and never updated on first load)
+
+---
+
 ## Version 1.4.5 — Grounded-State Hiding Options
 
 ### New Features

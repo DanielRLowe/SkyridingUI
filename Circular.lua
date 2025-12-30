@@ -646,6 +646,9 @@ function SUI:ApplyCircularSettings()
             end
         end
     end
+    
+    -- Update speed arc to initialize alpha values (segments start with alpha 0)
+    UpdateSpeedArc()
 end
 
 function SUI:SetCircularActive(state)
