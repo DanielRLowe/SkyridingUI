@@ -413,11 +413,23 @@ local function UpdateVigorDisplay()
     local info = C_Spell.GetSpellCharges(VIGOR_SPELL_ID)
     if not info then return end
     
-    -- Convert to regular numbers to avoid "secret value" taint on Beta realms
-    local current = tonumber(info.currentCharges) or 0
-    local maximum = tonumber(info.maxCharges) or 6
-    local cdStart = tonumber(info.cooldownStartTime) or 0
-    local cdDuration = tonumber(info.cooldownDuration) or 0
+    -- On Beta realms in combat, spell charge data may be completely restricted
+    -- Use pcall to prevent errors and default to safe values
+    local success, current, maximum, cdStart, cdDuration = pcall(function()
+        local curr = (info.currentCharges and (info.currentCharges + 0)) or 0
+        local max = (info.maxCharges and (info.maxCharges + 0)) or 6
+        local start = (info.cooldownStartTime and (info.cooldownStartTime + 0)) or 0
+        local dur = (info.cooldownDuration and (info.cooldownDuration + 0)) or 0
+        return curr, max, start, dur
+    end)
+    
+    -- If data is restricted (Beta in combat), use defaults
+    if not success then
+        current = 0
+        maximum = 6
+        cdStart = 0
+        cdDuration = 0
+    end
     
     -- Ensure we have the right number of orbs
     if #orbs ~= maximum or not orbs[1] then

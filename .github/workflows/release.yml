@@ -40,7 +40,8 @@ jobs:
             -x "SkyridingUI/*/.DS_Store" \
             -x "SkyridingUI/__MACOSX/*" \
             -x "SkyridingUI/.pkgmeta" \
-            -x "SkyridingUI/README.md"
+            -x "SkyridingUI/README.md" \
+            -x "SkyridingUI/LICENSE"
           mv "SkyridingUI_${{ steps.version.outputs.version }}.zip" SkyridingUI/
 
       - name: Extract changelog
