@@ -68,6 +68,7 @@ local defaults = {
     vigorShowWings = true,
     vigorOrbSpacing = 6,
     vigorShowSwirl = true,
+    vigorShowSurge = true,
 }
 
 --------------------------------------------------------------------------------
@@ -1433,7 +1434,18 @@ local function InitializeOptionsFrame()
         SkyridingUIDB.vigorShowSwirl = self:GetChecked()
         if SUI.ApplyVigorSettings then SUI:ApplyVigorSettings() end
     end)
-    
+
+    yPos = yPos - 30
+
+    local showSurgeCheck = CreateFrame("CheckButton", nil, tab5, "UICheckButtonTemplate")
+    showSurgeCheck:SetPoint("TOPLEFT", 20, yPos)
+    showSurgeCheck:SetChecked(SkyridingUIDB.vigorShowSurge ~= false)
+    showSurgeCheck.text:SetText("Show Whirling Surge Cooldown Oval")
+    showSurgeCheck:SetScript("OnClick", function(self)
+        SkyridingUIDB.vigorShowSurge = self:GetChecked()
+        if SUI.ApplyVigorSettings then SUI:ApplyVigorSettings() end
+    end)
+
     yPos = yPos - 40
     
     -- Orb Color

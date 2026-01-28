@@ -48,6 +48,15 @@ end
 local vigorFrame, wingLeft, wingRight
 local orbs = {}
 
+-- Surge oval state (stadium/rounded rectangle shape)
+local surgeOvalSegments = {}
+local surgeOvalFrame
+local NUM_SURGE_SEGMENTS = 120  -- Segments for smooth shape
+local SURGE_PADDING_X = 10      -- Horizontal padding beyond orbs
+local SURGE_PADDING_Y = 4       -- Vertical padding (small for stadium look)
+local SURGE_LINE_THICKNESS = 3
+local SURGE_COLOR = {0.4, 0.8, 0.4}  -- Green, matching other layouts
+
 -- Layout settings
 local ORB_SIZE = 32
 local GLOW_SCALE = 1.5  -- Glow texture extends beyond the orb
@@ -60,6 +69,11 @@ end
 -- Spell IDs
 local VIGOR_SPELL_ID = 372610
 local THRILL_BUFF_ID = 377234
+
+-- Convert degrees to radians
+local function DegToRad(degrees)
+    return degrees * math.pi / 180
+end
 
 --------------------------------------------------------------------------------
 -- Orb Creation
@@ -322,6 +336,144 @@ local function SetOrbCharging(orb, progress, hasThrillBuff)
 end
 
 --------------------------------------------------------------------------------
+-- Surge Oval
+-- An ellipse that surrounds the vigor orbs, depleting clockwise as Whirling
+-- Surge cooldown progresses. Uses line segments for smooth appearance.
+--------------------------------------------------------------------------------
+
+-- Get position on stadium (rounded rectangle) perimeter
+-- t: 0 to 1 around the perimeter, starting at top-center going clockwise
+-- Returns x, y coordinates
+local function GetStadiumPoint(t, halfWidth, radius)
+    -- Stadium perimeter consists of:
+    -- - Top straight section (length = 2 * halfWidth - 2 * radius)
+    -- - Right semicircle (half-circumference = π * radius)
+    -- - Bottom straight section
+    -- - Left semicircle
+    local straightLen = halfWidth - radius
+    if straightLen < 0 then straightLen = 0 end
+
+    local curveLen = math.pi * radius
+    local totalPerimeter = 4 * straightLen + 2 * curveLen
+
+    -- Normalize t to perimeter distance
+    local dist = t * totalPerimeter
+
+    -- Section lengths
+    local topRightLen = straightLen        -- top-center to top-right corner
+    local rightCurveLen = curveLen         -- right semicircle
+    local bottomLen = 2 * straightLen      -- bottom straight
+    local leftCurveLen = curveLen          -- left semicircle
+    local topLeftLen = straightLen         -- top-left corner to top-center
+
+    local x, y
+
+    if dist < topRightLen then
+        -- Top straight, going right from center
+        x = dist
+        y = radius
+    elseif dist < topRightLen + rightCurveLen then
+        -- Right semicircle (90° down to -90°)
+        local curveT = (dist - topRightLen) / rightCurveLen
+        local angle = math.rad(90 - curveT * 180)
+        x = straightLen + radius * math.cos(angle)
+        y = radius * math.sin(angle)
+    elseif dist < topRightLen + rightCurveLen + bottomLen then
+        -- Bottom straight, going left
+        local straightT = (dist - topRightLen - rightCurveLen) / bottomLen
+        x = straightLen - straightT * 2 * straightLen
+        y = -radius
+    elseif dist < topRightLen + rightCurveLen + bottomLen + leftCurveLen then
+        -- Left semicircle (from bottom-left around to top-left, going through leftmost point)
+        local curveT = (dist - topRightLen - rightCurveLen - bottomLen) / leftCurveLen
+        local angle = math.rad(-90 - curveT * 180)  -- Goes -90° -> -180° -> -270° (through left side)
+        x = -straightLen + radius * math.cos(angle)
+        y = radius * math.sin(angle)
+    else
+        -- Top straight, going right from left side back to center
+        local straightT = (dist - topRightLen - rightCurveLen - bottomLen - leftCurveLen) / topLeftLen
+        x = -straightLen + straightT * straightLen
+        y = radius
+    end
+
+    return x, y
+end
+
+local function CreateSurgeOval(parent, orbCount)
+    -- Clean up existing segments
+    for i, seg in ipairs(surgeOvalSegments) do
+        if seg then seg:Hide() end
+    end
+    surgeOvalSegments = {}
+
+    if not parent then return end
+
+    -- Calculate stadium dimensions based on current orb layout
+    local spacing = GetOrbSpacing()
+    local totalWidth = (ORB_SIZE * orbCount) + (spacing * (orbCount - 1))
+
+    -- Stadium (rounded rectangle): width based on orbs, height slightly more than orb
+    local width = totalWidth + SURGE_PADDING_X * 2
+    local height = ORB_SIZE + SURGE_PADDING_Y * 2
+    local halfWidth = width / 2
+    local radius = height / 2  -- Semicircle radius at ends
+
+    -- Create segments around the stadium perimeter (clockwise from top-center)
+    for i = 1, NUM_SURGE_SEGMENTS do
+        local segment = parent:CreateLine(nil, "BACKGROUND", nil, -1)
+        segment:SetThickness(SURGE_LINE_THICKNESS)
+        segment:SetColorTexture(SURGE_COLOR[1], SURGE_COLOR[2], SURGE_COLOR[3], 1)
+
+        -- Get start and end points for this segment
+        local t1 = (i - 1) / NUM_SURGE_SEGMENTS
+        local t2 = i / NUM_SURGE_SEGMENTS
+
+        local x1, y1 = GetStadiumPoint(t1, halfWidth, radius)
+        local x2, y2 = GetStadiumPoint(t2, halfWidth, radius)
+
+        segment:SetStartPoint("CENTER", parent, x1, y1)
+        segment:SetEndPoint("CENTER", parent, x2, y2)
+
+        segment:Hide()  -- Start hidden until surge is active
+        surgeOvalSegments[i] = segment
+    end
+end
+
+local function UpdateSurgeOval(progress)
+    if not vigorFrame then return end
+    if SkyridingUIDB.vigorShowSurge == false then
+        -- Hide all segments if disabled
+        for _, seg in ipairs(surgeOvalSegments) do
+            if seg then seg:Hide() end
+        end
+        return
+    end
+
+    if progress <= 0 then
+        -- No surge active, hide all
+        for _, seg in ipairs(surgeOvalSegments) do
+            if seg then seg:Hide() end
+        end
+        return
+    end
+
+    -- Calculate how many segments to show (depletes clockwise from top)
+    -- As progress decreases, hide segments starting from segment 1 (top-center)
+    local segmentsToHide = NUM_SURGE_SEGMENTS - math.floor(progress * NUM_SURGE_SEGMENTS)
+
+    for i, seg in ipairs(surgeOvalSegments) do
+        if seg then
+            if i > segmentsToHide then
+                seg:SetColorTexture(SURGE_COLOR[1], SURGE_COLOR[2], SURGE_COLOR[3], 1)
+                seg:Show()
+            else
+                seg:Hide()
+            end
+        end
+    end
+end
+
+--------------------------------------------------------------------------------
 -- Main Frame Setup
 --------------------------------------------------------------------------------
 
@@ -401,6 +553,9 @@ local function LayoutOrbs(count)
     -- Position wing finials
     wingLeft:SetPoint("RIGHT", vigorFrame, "LEFT", 15, -8)
     wingRight:SetPoint("LEFT", vigorFrame, "RIGHT", -15, -8)
+
+    -- Create/recreate surge oval to match new layout
+    CreateSurgeOval(vigorFrame, count)
 end
 
 --------------------------------------------------------------------------------
@@ -453,7 +608,7 @@ local function UpdateVigorDisplay()
     for i = 1, maximum do
         local orb = orbs[i]
         if not orb then break end
-        
+
         if i <= current then
             -- This orb is fully charged
             SetOrbFull(orb, true)
@@ -465,6 +620,20 @@ local function UpdateVigorDisplay()
             SetOrbEmpty(orb)
         end
     end
+
+    -- Update Whirling Surge oval (depletes as cooldown progresses)
+    local surgeProgress = 0
+    local time = GetTime()
+    if SUI.whirlingSurgeStart > 0 and SUI.whirlingSurgeDuration > 0 then
+        local elapsed = time - SUI.whirlingSurgeStart
+        local remaining = SUI.whirlingSurgeDuration - elapsed
+        if remaining > 0 then
+            surgeProgress = remaining / SUI.whirlingSurgeDuration
+        else
+            SUI.whirlingSurgeStart = 0
+        end
+    end
+    UpdateSurgeOval(surgeProgress)
 end
 
 --------------------------------------------------------------------------------
@@ -518,6 +687,10 @@ function SUI:InitVigorDefaults()
     if SkyridingUIDB.vigorOrbColor == nil then
         SkyridingUIDB.vigorOrbColor = {0.22, 0.58, 0.78}  -- Teal blue
     end
+    -- Surge oval visibility (default true)
+    if SkyridingUIDB.vigorShowSurge == nil then
+        SkyridingUIDB.vigorShowSurge = true
+    end
 end
 
 function SUI:ApplyVigorSettings()
@@ -542,6 +715,13 @@ function SUI:ApplyVigorSettings()
                 orb.swirl:Hide()
                 orb.swirlAnimGroup:Stop()
             end
+        end
+    end
+
+    -- Update surge oval visibility (hide immediately if disabled)
+    if SkyridingUIDB.vigorShowSurge == false then
+        for _, seg in ipairs(surgeOvalSegments) do
+            if seg then seg:Hide() end
         end
     end
 end

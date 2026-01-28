@@ -1,5 +1,15 @@
 # SkyridingUI Changelog
 
+## Version 1.4.9 — Vigor Whirling Surge Tracker
+
+### New Features
+- **Whirling Surge Cooldown Oval**: Added a stadium-shaped indicator surrounding the vigor orbs that tracks Whirling Surge cooldown
+  - Green oval depletes clockwise over 30 seconds as the cooldown progresses
+  - Dynamically sizes based on orb count and spacing
+  - Toggle visibility via "Show Whirling Surge Cooldown Oval" checkbox in the Vigor tab
+
+---
+
 ## Version 1.4.8 — Speedometer Graphics Overhaul
 
 ### Improvements
