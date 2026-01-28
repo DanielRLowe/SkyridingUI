@@ -85,10 +85,7 @@ jobs:
           file_path: SkyridingUI_${{ steps.version.outputs.version }}.zip
           changelog: ${{ steps.changelog.outputs.changelog }}
           changelog_type: markdown
-          game_versions: |
-            11.0.7
-            12.0.0
-            12.0.1
+          game_versions: 12.0.0,12.0.1
           release_type: release
           token: ${{ secrets.CURSEFORGE_TOKEN }}
 
