@@ -1,5 +1,22 @@
 # SkyridingUI Changelog
 
+## Version 1.4.8 — Speedometer Graphics Overhaul
+
+### Improvements
+- **Custom Speedometer Textures**: Replaced basic line-drawn speedometer elements with polished custom PNG textures
+  - New circular background with subtle gradient
+  - Metallic outer rim with highlight effect
+  - 270° arc gauge with depth shading
+  - Tapered red needle with gradient and shadow
+  - Polished center cap for needle pivot
+- **Smooth Needle Animation**: Needle now interpolates smoothly toward target speed instead of jumping
+- **Thrill of the Skies Visual Effects**: Added optional visual feedback when the Thrill buff is active
+  - Blue aura glow around the speedometer (toggleable)
+  - Pulsing red needle effect (toggleable)
+  - Both options available under the Speedometer tab in `/sui options`
+
+---
+
 ## Version 1.4.7 — Minimap Button Compatibility Fix
 
 ### Improvements

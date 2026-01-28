@@ -62,6 +62,8 @@ local defaults = {
     backgroundOpacity = 0.5,
     -- Speedometer
     speedometerDangerZone = false,
+    speedometerThrillGlow = true,
+    speedometerNeedlePulse = true,
     -- Vigor
     vigorShowWings = true,
     vigorOrbSpacing = 6,
@@ -1208,14 +1210,34 @@ local function InitializeOptionsFrame()
         SkyridingUIDB.speedometerDangerZone = self:GetChecked()
         if SUI.ApplySpeedometerSettings then SUI:ApplySpeedometerSettings() end
     end)
-    
+
+    yPos = yPos - 30
+
+    local thrillGlowCheck = CreateFrame("CheckButton", nil, tab3, "UICheckButtonTemplate")
+    thrillGlowCheck:SetPoint("TOPLEFT", 20, yPos)
+    thrillGlowCheck:SetChecked(SkyridingUIDB.speedometerThrillGlow ~= false)  -- Default to true
+    thrillGlowCheck.text:SetText("Show Blue Aura During Thrill of the Skies")
+    thrillGlowCheck:SetScript("OnClick", function(self)
+        SkyridingUIDB.speedometerThrillGlow = self:GetChecked()
+    end)
+
+    yPos = yPos - 30
+
+    local needlePulseCheck = CreateFrame("CheckButton", nil, tab3, "UICheckButtonTemplate")
+    needlePulseCheck:SetPoint("TOPLEFT", 20, yPos)
+    needlePulseCheck:SetChecked(SkyridingUIDB.speedometerNeedlePulse ~= false)  -- Default to true
+    needlePulseCheck.text:SetText("Show Needle Pulse During Thrill of the Skies")
+    needlePulseCheck:SetScript("OnClick", function(self)
+        SkyridingUIDB.speedometerNeedlePulse = self:GetChecked()
+    end)
+
     yPos = yPos - 40
-    
+
     local speedoNote = tab3:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     speedoNote:SetPoint("TOPLEFT", 20, yPos)
     speedoNote:SetWidth(380)
     speedoNote:SetJustifyH("LEFT")
-    speedoNote:SetText("The Speedometer displays your current speed as a dial gauge with needle indicator.")
+    speedoNote:SetText("The Speedometer displays your current speed as a dial gauge with needle indicator. During Thrill of the Skies, the blue aura glows around the gauge and the needle pulses brighter.")
     speedoNote:SetTextColor(0.7, 0.7, 0.7)
     
     -- ==================== TAB 4: CIRCULAR ====================

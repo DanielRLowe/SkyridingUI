@@ -1,8 +1,8 @@
-## Interface: 110207, 120000, 120001
+## Interface: 120000, 120001
 ## Title: Skyriding UI
 ## Notes: Track Skyriding speed and charges with bar, speedometer, circular, or vigor orb display
 ## Author: Xynth
-## Version: 1.4.7
+## Version: 1.4.8
 ## SavedVariables: SkyridingUIDB
 ## IconTexture: Interface\Icons\ability_druid_flightform
 ## AddonCompartmentFunc: SkyridingUI_AddonCompartment_OnClick

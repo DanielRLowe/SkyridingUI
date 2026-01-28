@@ -1,14 +1,38 @@
 --[[
     SkyridingUI - Speedometer Module
     An analog speedometer-style display for Skyriding speed
-    
-    Reuses core logic from SkyridingUI.lua
+
+    Uses custom PNG textures for a polished appearance.
+    Textures are located in Textures/ and generated via create_speedometer_svg.py
 ]]
 
 local addonName, addon = ...
 
 -- Get reference to main addon (created in SkyridingUI.lua)
 local SUI = SkyridingUI
+
+--------------------------------------------------------------------------------
+-- Asset Configuration
+--------------------------------------------------------------------------------
+
+local ASSET_BASE = "Interface/AddOns/SkyridingUI/Textures/"
+
+-- Texture asset names (without extension)
+local TEX_BACKGROUND   = "speedometer_background"
+local TEX_ARC          = "speedometer_arc"
+local TEX_RIM          = "speedometer_rim"
+local TEX_NEEDLE       = "speedometer_needle"
+local TEX_CENTER_CAP   = "speedometer_center_cap"
+local TEX_GLOW         = "speedometer_glow"
+
+--- Resolves texture path for PNG assets.
+local function Tex(baseName)
+    return ASSET_BASE .. baseName .. ".png"
+end
+
+--------------------------------------------------------------------------------
+-- Module State
+--------------------------------------------------------------------------------
 
 -- Speedometer-specific variables
 local speedometerFrame
@@ -18,6 +42,11 @@ local surgeArc
 local secondWindBars = {}
 local tickMarks = {}
 local tickLabels = {}
+
+-- Needle smoothing
+local currentNeedleAngle = 225  -- Start at 0% position
+local targetNeedleAngle = 225
+local NEEDLE_SMOOTHING = 0.15   -- Lower = smoother but slower (0-1)
 
 -- Constants for speedometer
 local SPEEDOMETER_SIZE = 200
@@ -62,7 +91,7 @@ end
 -- Create the speedometer frame
 local function CreateSpeedometerFrame()
     if speedometerFrame then return speedometerFrame end
-    
+
     -- Main container
     speedometerFrame = CreateFrame("Frame", "SkyridingSpeedometerFrame", UIParent)
     speedometerFrame:SetSize(SPEEDOMETER_SIZE, SPEEDOMETER_SIZE)
@@ -73,13 +102,13 @@ local function CreateSpeedometerFrame()
     speedometerFrame:RegisterForDrag("LeftButton")
     speedometerFrame:SetClampedToScreen(true)
     speedometerFrame:Hide()
-    
+
     speedometerFrame:SetScript("OnDragStart", function(self)
         if not SkyridingUIDB.speedometerLocked then
             self:StartMoving()
         end
     end)
-    
+
     speedometerFrame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         local point, _, relativePoint, x, y = self:GetPoint()
@@ -88,78 +117,92 @@ local function CreateSpeedometerFrame()
         SkyridingUIDB.speedometerXOffset = x
         SkyridingUIDB.speedometerYOffset = y
     end)
-    
-    -- Background circle
+
+    -- Layer 1: Circular background (with gradient)
     local bg = speedometerFrame:CreateTexture(nil, "BACKGROUND")
     bg:SetSize(SPEEDOMETER_SIZE, SPEEDOMETER_SIZE)
     bg:SetPoint("CENTER")
-    bg:SetColorTexture(0, 0, 0, 0.7)
-    -- Make it circular using mask or just use solid for now
+    bg:SetTexture(Tex(TEX_BACKGROUND))
     speedometerFrame.bg = bg
-    
-    -- Create arc background (the speedometer gauge area)
+
+    -- Layer 2: Arc gauge area (the 270° arc)
     local arcBg = speedometerFrame:CreateTexture(nil, "BORDER")
-    arcBg:SetSize(SPEEDOMETER_SIZE - 20, SPEEDOMETER_SIZE - 20)
+    arcBg:SetSize(SPEEDOMETER_SIZE - 10, SPEEDOMETER_SIZE - 10)
     arcBg:SetPoint("CENTER")
-    arcBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
+    arcBg:SetTexture(Tex(TEX_ARC))
     speedometerFrame.arcBg = arcBg
-    
+
+    -- Layer 3: Outer rim (metallic border)
+    local rim = speedometerFrame:CreateTexture(nil, "BORDER", nil, 1)
+    rim:SetSize(SPEEDOMETER_SIZE - 6, SPEEDOMETER_SIZE - 6)
+    rim:SetPoint("CENTER")
+    rim:SetTexture(Tex(TEX_RIM))
+    speedometerFrame.rim = rim
+
+    -- Layer 4: Glow effect (for Thrill state, initially hidden)
+    local glow = speedometerFrame:CreateTexture(nil, "ARTWORK", nil, -1)
+    glow:SetSize(SPEEDOMETER_SIZE * 1.1, SPEEDOMETER_SIZE * 1.1)
+    glow:SetPoint("CENTER")
+    glow:SetTexture(Tex(TEX_GLOW))
+    glow:SetAlpha(0)
+    speedometerFrame.glow = glow
+
     -- Create tick marks and labels
     local tickSpeeds = {0, 200, 400, 600, 789, 900, 1000, 1100, 1200}
     local labelSpeeds = {0, 400, 789, 1000, 1200}
-    
+
     for i, speed in ipairs(tickSpeeds) do
         local angle = SpeedToAngle(speed)
         local angleRad = DegToRad(angle)
-        
+
         -- Tick mark
         local tickLength = 8
         local tickWidth = 2
-        
+
         -- Check if this speed should have a label
         local hasLabel = false
         for _, labelSpeed in ipairs(labelSpeeds) do
             if speed == labelSpeed then hasLabel = true break end
         end
-        
+
         if hasLabel then
             tickLength = 12
             tickWidth = 3
         end
-        
+
         local innerRadius = (SPEEDOMETER_SIZE / 2) - 25
         local outerRadius = innerRadius + tickLength
-        
-        local tick = speedometerFrame:CreateLine(nil, "ARTWORK")
+
+        local tick = speedometerFrame:CreateLine(nil, "ARTWORK", nil, 2)
         tick:SetThickness(tickWidth)
-        
+
         local innerX = math.cos(angleRad) * innerRadius
         local innerY = math.sin(angleRad) * innerRadius
         local outerX = math.cos(angleRad) * outerRadius
         local outerY = math.sin(angleRad) * outerRadius
-        
+
         tick:SetStartPoint("CENTER", speedometerFrame, innerX, innerY)
         tick:SetEndPoint("CENTER", speedometerFrame, outerX, outerY)
-        
+
         -- Color ticks: Blue for Thrill (789), White for normal
         if speed == 789 then
             tick:SetColorTexture(0.2, 0.6, 1, 1)  -- Blue for Thrill
         else
             tick:SetColorTexture(0.8, 0.8, 0.8, 1)  -- White for normal
         end
-        
+
         tick.baseSpeed = speed  -- Store speed for later updates
         tickMarks[i] = tick
-        
+
         -- Labels
         if hasLabel then
             local labelRadius = innerRadius - 15
             local labelX = math.cos(angleRad) * labelRadius
             local labelY = math.sin(angleRad) * labelRadius
-            
+
             local label = speedometerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
             label:SetPoint("CENTER", speedometerFrame, "CENTER", labelX, labelY)
-            
+
             if speed == 789 then
                 label:SetText("789")
                 label:SetTextColor(0.2, 0.6, 1, 1)  -- Blue for Thrill
@@ -167,29 +210,33 @@ local function CreateSpeedometerFrame()
                 label:SetText(tostring(speed))
                 label:SetTextColor(0.7, 0.7, 0.7, 1)  -- White for normal
             end
-            
+
             label.baseSpeed = speed  -- Store speed for later updates
             tickLabels[#tickLabels + 1] = label
         end
     end
-    
-    -- Create needle
+
+    -- Create needle using texture (for smooth rotation)
     needleFrame = CreateFrame("Frame", nil, speedometerFrame)
-    needleFrame:SetSize(10, NEEDLE_LENGTH)
+    needleFrame:SetSize(SPEEDOMETER_SIZE, SPEEDOMETER_SIZE)
     needleFrame:SetPoint("CENTER", speedometerFrame, "CENTER", 0, 0)
-    
-    local needle = needleFrame:CreateLine(nil, "OVERLAY", nil, 6)
-    needle:SetThickness(4)
-    needle:SetStartPoint("CENTER", needleFrame, 0, -10)
-    needle:SetEndPoint("CENTER", needleFrame, 0, NEEDLE_LENGTH)
-    needle:SetColorTexture(1, 0.3, 0.3, 1)  -- Red needle
+    needleFrame:SetFrameLevel(speedometerFrame:GetFrameLevel() + 5)
+
+    local needle = needleFrame:CreateTexture(nil, "OVERLAY", nil, 6)
+    needle:SetSize(SPEEDOMETER_SIZE * 0.9, SPEEDOMETER_SIZE * 0.9)
+    needle:SetPoint("CENTER")
+    needle:SetTexture(Tex(TEX_NEEDLE))
+    -- Initialize rotation to 0% position (225 degrees = bottom-left)
+    -- Texture points UP (90°), WoW rotation is clockwise-positive
+    -- To point at angle A, rotate by (A - 90) degrees
+    needle:SetRotation(DegToRad(ARC_START_ANGLE - 90))
     speedometerFrame.needle = needle
-    
-    -- Needle center cap
+
+    -- Needle center cap (polished metallic cap)
     local cap = speedometerFrame:CreateTexture(nil, "OVERLAY", nil, 7)
-    cap:SetSize(16, 16)
+    cap:SetSize(28, 28)
     cap:SetPoint("CENTER")
-    cap:SetColorTexture(0.3, 0.3, 0.3, 1)
+    cap:SetTexture(Tex(TEX_CENTER_CAP))
     speedometerFrame.cap = cap
     
     -- Digital speed display in center
@@ -297,36 +344,74 @@ local function CreateSpeedometerFrame()
     return speedometerFrame
 end
 
--- Update needle position based on speed
+-- Update needle position based on speed (with smooth interpolation)
 local function UpdateNeedle(speedPercent)
     if not speedometerFrame or not speedometerFrame:IsShown() then return end
-    
-    local angle = SpeedToAngle(math.min(MAX_SPEED, math.max(0, speedPercent)))
-    local angleRad = DegToRad(angle)
-    
-    -- Update needle line endpoints
-    local needle = speedometerFrame.needle
-    local baseOffset = 10  -- Small offset behind center
-    local tipLength = NEEDLE_LENGTH
-    
-    local baseX = math.cos(angleRad + math.pi) * baseOffset
-    local baseY = math.sin(angleRad + math.pi) * baseOffset
-    local tipX = math.cos(angleRad) * tipLength
-    local tipY = math.sin(angleRad) * tipLength
-    
-    needle:SetStartPoint("CENTER", needleFrame, baseX, baseY)
-    needle:SetEndPoint("CENTER", needleFrame, tipX, tipY)
-    
+
+    -- Calculate target angle (clamped to valid speed range)
+    local clampedSpeed = math.min(MAX_SPEED, math.max(0, speedPercent))
+    targetNeedleAngle = SpeedToAngle(clampedSpeed)
+
+    -- Smooth interpolation towards target angle
+    -- No wrapping needed - our 270° arc goes from 225° to -45° without crossing 0°/360°
+    local angleDiff = targetNeedleAngle - currentNeedleAngle
+
+    -- Apply smoothing (lerp toward target)
+    currentNeedleAngle = currentNeedleAngle + angleDiff * NEEDLE_SMOOTHING
+
+    -- Clamp to valid arc range to prevent overshooting
+    currentNeedleAngle = math.min(ARC_START_ANGLE, math.max(ARC_END_ANGLE, currentNeedleAngle))
+
+    -- Convert to rotation for the texture
+    -- Texture points UP (90°), WoW rotation is clockwise-positive
+    -- To point at angle A, we rotate by (A - 90) degrees
+    local rotationRad = DegToRad(currentNeedleAngle - 90)
+    speedometerFrame.needle:SetRotation(rotationRad)
+
     -- Update digital display
     digitalDisplay:SetText(string.format("%.0f%%", speedPercent))
-    
-    -- Color based on Thrill buff
+
+    -- Color and glow based on Thrill buff
+    local showThrillGlow = SkyridingUIDB.speedometerThrillGlow ~= false  -- Default to true
+
+    local showNeedlePulse = SkyridingUIDB.speedometerNeedlePulse ~= false  -- Default to true
+
     if SUI.hasThrillBuff then
-        digitalDisplay:SetTextColor(0.2, 0.6, 1, 1)  -- Blue with Thrill
-        speedometerFrame.needle:SetColorTexture(0.2, 0.6, 1, 1)
+        digitalDisplay:SetTextColor(0.2, 0.6, 1, 1)  -- Blue text with Thrill
+
+        if showNeedlePulse then
+            -- Pulsing needle effect: oscillates between bright red and very bright red
+            local pulse = 0.5 + 0.5 * math.sin(GetTime() * 5)  -- Pulses ~0.8 times per second
+            local brightness = 0.85 + 0.15 * pulse  -- Range: 0.85 to 1.0
+            local warmth = 0.5 + 0.3 * pulse        -- Range: 0.5 to 0.8 (adds orange when bright)
+            speedometerFrame.needle:SetVertexColor(brightness, warmth, warmth * 0.6, 1)
+        else
+            speedometerFrame.needle:SetVertexColor(1, 1, 1, 1)  -- Normal appearance
+        end
+
+        if showThrillGlow then
+            -- Set glow to blue color (Thrill theme)
+            speedometerFrame.glow:SetVertexColor(0.3, 0.5, 1, 1)
+            -- Fade in blue aura glow
+            local targetAlpha = 0.7
+            local currentAlpha = speedometerFrame.glow:GetAlpha()
+            if currentAlpha < targetAlpha then
+                speedometerFrame.glow:SetAlpha(math.min(targetAlpha, currentAlpha + 0.05))
+            end
+        else
+            -- Glow disabled - immediately hide it
+            speedometerFrame.glow:SetAlpha(0)
+        end
     else
+        -- No Thrill buff - normal appearance
         digitalDisplay:SetTextColor(1, 1, 1, 1)  -- White normally
-        speedometerFrame.needle:SetColorTexture(1, 0.3, 0.3, 1)  -- Red
+        speedometerFrame.needle:SetVertexColor(1, 1, 1, 1)  -- Normal red from texture
+
+        -- Fade out glow (or keep it hidden)
+        local currentAlpha = speedometerFrame.glow:GetAlpha()
+        if currentAlpha > 0 then
+            speedometerFrame.glow:SetAlpha(math.max(0, currentAlpha - 0.08))
+        end
     end
 end
 
@@ -550,13 +635,20 @@ function SUI:ApplySpeedometerSettings()
     if speedometerFrame.bg then
         local opacity = SkyridingUIDB.backgroundOpacity or 0.5
         if SkyridingUIDB.showBackground then
-            speedometerFrame.bg:SetColorTexture(0, 0, 0, opacity)
+            speedometerFrame.bg:SetAlpha(opacity)
             speedometerFrame.bg:Show()
-            speedometerFrame.arcBg:SetColorTexture(0.1, 0.1, 0.1, opacity)
+            speedometerFrame.arcBg:SetAlpha(opacity)
             speedometerFrame.arcBg:Show()
+            if speedometerFrame.rim then
+                speedometerFrame.rim:SetAlpha(math.min(1, opacity + 0.3))
+                speedometerFrame.rim:Show()
+            end
         else
             speedometerFrame.bg:Hide()
             speedometerFrame.arcBg:Hide()
+            if speedometerFrame.rim then
+                speedometerFrame.rim:Hide()
+            end
         end
     end
     
@@ -615,8 +707,11 @@ function SUI:SetSpeedometerActive(state)
         CreateSpeedometerFrame()
         self:ApplySpeedometerSettings()
     end
-    
+
     if state then
+        -- Reset needle position to 0% when showing
+        currentNeedleAngle = ARC_START_ANGLE
+        targetNeedleAngle = ARC_START_ANGLE
         speedometerFrame:Show()
     else
         speedometerFrame:Hide()
@@ -642,6 +737,8 @@ function SUI:InitSpeedometerDefaults()
         speedometerXOffset = 0,
         speedometerYOffset = -100,
         speedometerDangerZone = false,
+        speedometerThrillGlow = true,
+        speedometerNeedlePulse = true,
     }
     
     for k, v in pairs(speedoDefaults) do
