@@ -1,5 +1,15 @@
 # SkyridingUI Changelog
 
+## Version 1.4.7 — Minimap Button Compatibility Fix
+
+### Improvements
+- **LibDBIcon Integration**: Replaced custom minimap button implementation with LibDBIcon library for improved compatibility
+  - Works correctly with ElvUI, Leatrix Plus, and other addons that customize the minimap
+  - Button properly follows minimap edge on square, round, and custom-shaped minimaps
+  - Better handling of minimap scaling and positioning
+
+---
+
 ## Version 1.4.6 — Circular Speed Ring Visibility Fix
 
 ### Bug Fixes

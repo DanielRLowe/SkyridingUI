@@ -260,105 +260,65 @@ local function ToggleLock()
 end
 
 --------------------------------------------------------------------------------
--- Minimap Button
+-- Minimap Button (using LibDBIcon for compatibility with all minimap shapes)
 --------------------------------------------------------------------------------
 
-local minimapButton
-
-local function CreateMinimapButton()
-    if minimapButton then return minimapButton end
-    
-    if SkyridingUIDB.minimapPos == nil then
-        SkyridingUIDB.minimapPos = 220
-    end
-    if SkyridingUIDB.showMinimapButton == nil then
-        SkyridingUIDB.showMinimapButton = true
-    end
-    
-    minimapButton = CreateFrame("Button", "SkyridingUIMinimapButton", Minimap)
-    minimapButton:SetSize(32, 32)
-    minimapButton:SetFrameStrata("MEDIUM")
-    minimapButton:SetFrameLevel(8)
-    minimapButton:SetMovable(true)
-    minimapButton:SetClampedToScreen(true)
-    minimapButton:RegisterForClicks("AnyUp")
-    minimapButton:RegisterForDrag("LeftButton")
-    
-    local bg = minimapButton:CreateTexture(nil, "BACKGROUND")
-    bg:SetSize(26, 26)
-    bg:SetPoint("CENTER")
-    bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
-    
-    local icon = minimapButton:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(20, 20)
-    icon:SetPoint("CENTER", 0, 1)
-    icon:SetTexture("Interface\\Icons\\ability_druid_flightform")
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    
-    local border = minimapButton:CreateTexture(nil, "OVERLAY")
-    border:SetSize(54, 54)
-    border:SetPoint("TOPLEFT", minimapButton, "TOPLEFT", 0, 0)
-    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-    
-    local highlight = minimapButton:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetSize(26, 26)
-    highlight:SetPoint("CENTER")
-    highlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-    highlight:SetBlendMode("ADD")
-    
-    local function UpdatePosition()
-        local angle = math.rad(SkyridingUIDB.minimapPos or 220)
-        -- Match standard LibDBIcon positioning: minimap radius + 5 pixels
-        local radius = (Minimap:GetWidth() / 2) + 15
-        local x = math.cos(angle) * radius
-        local y = math.sin(angle) * radius
-        minimapButton:ClearAllPoints()
-        minimapButton:SetPoint("CENTER", Minimap, "CENTER", x, y)
-    end
-    
-    minimapButton:SetScript("OnDragStart", function(self) self.isDragging = true end)
-    minimapButton:SetScript("OnDragStop", function(self) self.isDragging = false end)
-    
-    minimapButton:SetScript("OnUpdate", function(self)
-        if self.isDragging then
-            local mx, my = Minimap:GetCenter()
-            local cx, cy = GetCursorPosition()
-            local scale = Minimap:GetEffectiveScale()
-            cx, cy = cx / scale, cy / scale
-            SkyridingUIDB.minimapPos = math.deg(math.atan2(cy - my, cx - mx))
-            UpdatePosition()
-        end
-    end)
-    
-    minimapButton:SetScript("OnClick", function(self, button)
+local LibDBIcon = LibStub("LibDBIcon-1.0")
+local LDB = LibStub("LibDataBroker-1.1"):NewDataObject("SkyridingUI", {
+    type = "launcher",
+    icon = "Interface\\Icons\\ability_druid_flightform",
+    OnClick = function(self, button)
         if button == "LeftButton" then
             SUI:ToggleOptionsFrame()
         elseif button == "RightButton" then
             ToggleLock()
         end
-    end)
-    
-    minimapButton:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine("Skyriding UI", 1, 0.82, 0)
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("|cffffffffLeft-click|r to open options", 0.8, 0.8, 0.8)
-        GameTooltip:AddLine("|cffffffffRight-click|r to toggle lock", 0.8, 0.8, 0.8)
-        GameTooltip:AddLine("|cffffffffDrag|r to move this button", 0.8, 0.8, 0.8)
-        GameTooltip:Show()
-    end)
-    
-    minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    
-    UpdatePosition()
-    
-    if SkyridingUIDB.showMinimapButton then
-        minimapButton:Show()
-    else
-        minimapButton:Hide()
+    end,
+    OnTooltipShow = function(tooltip)
+        tooltip:AddLine("Skyriding UI", 1, 0.82, 0)
+        tooltip:AddLine(" ")
+        tooltip:AddLine("|cffffffffLeft-click|r to open options", 0.8, 0.8, 0.8)
+        tooltip:AddLine("|cffffffffRight-click|r to toggle lock", 0.8, 0.8, 0.8)
+        tooltip:AddLine("|cffffffffDrag|r to move this button", 0.8, 0.8, 0.8)
+    end,
+})
+
+local minimapButton = nil
+
+local function RegisterMinimapButton()
+    -- Initialize minimap settings in db if not present
+    if not SkyridingUIDB.minimap then
+        SkyridingUIDB.minimap = { hide = false }
+    end
+    -- Migrate old minimapPos to new format if needed
+    if SkyridingUIDB.minimapPos and not SkyridingUIDB.minimap.minimapPos then
+        SkyridingUIDB.minimap.minimapPos = SkyridingUIDB.minimapPos
+    end
+    -- Migrate old showMinimapButton setting
+    if SkyridingUIDB.showMinimapButton == false then
+        SkyridingUIDB.minimap.hide = true
     end
     
-    return minimapButton
+    LibDBIcon:Register("SkyridingUI", LDB, SkyridingUIDB.minimap)
+    minimapButton = LibDBIcon:GetMinimapButton("SkyridingUI")
+end
+
+local function ShowMinimapButton()
+    if SkyridingUIDB.minimap then
+        SkyridingUIDB.minimap.hide = false
+    end
+    LibDBIcon:Show("SkyridingUI")
+end
+
+local function HideMinimapButton()
+    if SkyridingUIDB.minimap then
+        SkyridingUIDB.minimap.hide = true
+    end
+    LibDBIcon:Hide("SkyridingUI")
+end
+
+local function IsMinimapButtonShown()
+    return not (SkyridingUIDB.minimap and SkyridingUIDB.minimap.hide)
 end
 
 --------------------------------------------------------------------------------
@@ -940,12 +900,13 @@ local function InitializeOptionsFrame()
     
     local showMinimapCheck = CreateFrame("CheckButton", nil, tab1, "UICheckButtonTemplate")
     showMinimapCheck:SetPoint("TOPLEFT", 20, yPos)
-    showMinimapCheck:SetChecked(SkyridingUIDB.showMinimapButton ~= false)
+    showMinimapCheck:SetChecked(IsMinimapButtonShown())
     showMinimapCheck.text:SetText("Show Minimap Button")
     showMinimapCheck:SetScript("OnClick", function(self)
-        SkyridingUIDB.showMinimapButton = self:GetChecked()
-        if minimapButton then
-            if SkyridingUIDB.showMinimapButton then minimapButton:Show() else minimapButton:Hide() end
+        if self:GetChecked() then
+            ShowMinimapButton()
+        else
+            HideMinimapButton()
         end
     end)
     
@@ -1571,7 +1532,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if SUI.ApplyCircularSettings then SUI:ApplyCircularSettings() end
         if SUI.ApplyVigorSettings then SUI:ApplyVigorSettings() end
         
-        CreateMinimapButton()
+        RegisterMinimapButton()
         CreateBlizzardOptionsPanel()
         
         print("|cff00ff00SkyridingUI|r loaded! Type /sui options for settings.")
