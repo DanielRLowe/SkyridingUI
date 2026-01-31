@@ -23,6 +23,7 @@ local WHIRLING_SURGE_ID = 361584
 local SECOND_WIND_ID = 425782
 local MAX_PASSIVE_GLIDE_SPEED = 65
 local ASCENT_DURATION = 3.5
+local MAX_UNBOOSTED_SPEED = 789  -- Max speed % without ability boosts (non-Dragonflight zones)
 
 -- Skyriding ability spell IDs
 local SKYRIDING_ABILITIES = {
@@ -35,7 +36,7 @@ local SKYRIDING_ABILITIES = {
 --------------------------------------------------------------------------------
 
 local mainFrame
-local speedBar, speedText
+local speedBar, speedText, speedMaxMarker
 local accelBar, surgBar
 local chargeBars = {}
 local chargeBarBgs = {}
@@ -73,6 +74,7 @@ local defaults = {
     showAccelBar = true,
     showSurgeBar = true,
     showSecondWindBars = true,
+    showSpeedMaxMarker = true,
 }
 
 --------------------------------------------------------------------------------
@@ -128,7 +130,14 @@ local function CreateHorizontalFrame()
     speedText = speedBar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     speedText:SetPoint("CENTER")
     speedText:SetText("0")
-    
+
+    -- Max unboosted speed marker (vertical white line at 789%)
+    speedMaxMarker = speedBar:CreateTexture(nil, "BACKGROUND")
+    speedMaxMarker:SetColorTexture(1, 1, 1, 1)
+    speedMaxMarker:SetSize(2, 20)
+    local markerOffset = (MAX_UNBOOSTED_SPEED / 1200) * 390
+    speedMaxMarker:SetPoint("RIGHT", speedBar, "LEFT", markerOffset, 0)
+
     -- Charge bars (6 bars for charges)
     local totalBarWidth = 390
     local chargeBarWidth = totalBarWidth / 6
@@ -247,7 +256,13 @@ local function UpdateLayout()
     speedBar:SetSize(speedW, speedH)
     accelBar:SetSize(accelW, accelH)
     surgBar:SetSize(surgeW, surgeH)
-    
+
+    -- Update max speed marker position and height
+    speedMaxMarker:SetSize(2, speedH)
+    speedMaxMarker:ClearAllPoints()
+    local markerOffset = (MAX_UNBOOSTED_SPEED / 1200) * speedW
+    speedMaxMarker:SetPoint("RIGHT", speedBar, "LEFT", markerOffset, 0)
+
     -- Scale speed bar font based on bar height
     local baseFontSize = 14
     local baseHeight = 20
@@ -281,6 +296,13 @@ local function UpdateLayout()
         totalHeight = totalHeight + speedH + padding
     else
         speedBar:Hide()
+    end
+
+    -- Speed max marker visibility
+    if SkyridingUIDB.showSpeedBar ~= false and SkyridingUIDB.showSpeedMaxMarker ~= false then
+        speedMaxMarker:Show()
+    else
+        speedMaxMarker:Hide()
     end
     
     -- Charge bars

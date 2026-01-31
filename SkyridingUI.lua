@@ -136,6 +136,12 @@ local function HasFullVigorCharges()
     return true  -- Default to true if we can't get charge info
 end
 
+local function ShouldHideWhenGroundedAlways()
+    if not SkyridingUIDB.hideWhenGrounded then return false end
+    local isGliding = C_PlayerInfo.GetGlidingInfo()
+    return not isGliding  -- Hide whenever grounded, regardless of charges
+end
+
 local function ShouldHideWhenGrounded()
     if not SkyridingUIDB.hideWhenGroundedFull then return false end
     local isGliding = C_PlayerInfo.GetGlidingInfo()
@@ -188,8 +194,8 @@ function SUI:SetActive(state)
         if not self.updateTimer then
             self.updateTimer = C_Timer.NewTicker(UPDATE_PERIOD, function()
                 if SUI.active then
-                    -- Check if we should hide when grounded with full charges
-                    local shouldHide = ShouldHideWhenGrounded()
+                    -- Check if we should hide when grounded
+                    local shouldHide = ShouldHideWhenGroundedAlways() or ShouldHideWhenGrounded()
                     SUI:SetUIVisible(not shouldHide)
                     
                     local mode = SkyridingUIDB.uiMode or "bars"
@@ -915,6 +921,16 @@ local function InitializeOptionsFrame()
     
     yPos = yPos - 25
     
+    local hideGroundedAlwaysCheck = CreateFrame("CheckButton", nil, tab1, "UICheckButtonTemplate")
+    hideGroundedAlwaysCheck:SetPoint("TOPLEFT", 20, yPos)
+    hideGroundedAlwaysCheck:SetChecked(SkyridingUIDB.hideWhenGrounded or false)
+    hideGroundedAlwaysCheck.text:SetText("Hide UI when grounded")
+    hideGroundedAlwaysCheck:SetScript("OnClick", function(self)
+        SkyridingUIDB.hideWhenGrounded = self:GetChecked()
+    end)
+
+    yPos = yPos - 25
+
     local hideGroundedCheck = CreateFrame("CheckButton", nil, tab1, "UICheckButtonTemplate")
     hideGroundedCheck:SetPoint("TOPLEFT", 20, yPos)
     hideGroundedCheck:SetChecked(SkyridingUIDB.hideWhenGroundedFull or false)
@@ -922,7 +938,7 @@ local function InitializeOptionsFrame()
     hideGroundedCheck:SetScript("OnClick", function(self)
         SkyridingUIDB.hideWhenGroundedFull = self:GetChecked()
     end)
-    
+
     yPos = yPos - 25
     
     local hideSpeedAccelCheck = CreateFrame("CheckButton", nil, tab1, "UICheckButtonTemplate")
@@ -1164,7 +1180,16 @@ local function InitializeOptionsFrame()
         SkyridingUIDB.showSecondWindBars = self:GetChecked()
         visibilityUpdateCallback()
     end)
-    
+
+    local showMaxMarkerCheck = CreateFrame("CheckButton", nil, tab2, "UICheckButtonTemplate")
+    showMaxMarkerCheck:SetPoint("TOPLEFT", 200, yPos)
+    showMaxMarkerCheck:SetChecked(SkyridingUIDB.showSpeedMaxMarker ~= false)
+    showMaxMarkerCheck.text:SetText("Show Max Speed Marker")
+    showMaxMarkerCheck:SetScript("OnClick", function(self)
+        SkyridingUIDB.showSpeedMaxMarker = self:GetChecked()
+        visibilityUpdateCallback()
+    end)
+
     yPos = yPos - 35
     
     -- Bar Colors

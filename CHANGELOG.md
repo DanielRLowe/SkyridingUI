@@ -1,5 +1,15 @@
 # SkyridingUI Changelog
 
+## Version 1.4.10 — Grounded Hiding & Max Speed Marker
+
+### New Features
+- **Hide UI when grounded**: Added option to completely hide the UI whenever grounded, regardless of vigor charges (General tab)
+- **Max Speed Marker**: Added a white vertical line on the Horizontal speed bar indicating the max unboosted flight speed (789%)
+  - Sits behind the speed bar fill so it is covered once your speed reaches or exceeds 789%
+  - Toggle visibility via "Show Max Speed Marker" checkbox in the Horizontal tab
+
+---
+
 ## Version 1.4.9 — Vigor Whirling Surge Tracker
 
 ### New Features
