@@ -1190,6 +1190,17 @@ local function InitializeOptionsFrame()
         visibilityUpdateCallback()
     end)
 
+    yPos = yPos - 25
+
+    local markerAlwaysVisibleCheck = CreateFrame("CheckButton", nil, tab2, "UICheckButtonTemplate")
+    markerAlwaysVisibleCheck:SetPoint("TOPLEFT", 200, yPos)
+    markerAlwaysVisibleCheck:SetChecked(SkyridingUIDB.maxSpeedMarkerAlwaysVisible == true)
+    markerAlwaysVisibleCheck.text:SetText("Marker Always Visible")
+    markerAlwaysVisibleCheck:SetScript("OnClick", function(self)
+        SkyridingUIDB.maxSpeedMarkerAlwaysVisible = self:GetChecked()
+        visibilityUpdateCallback()
+    end)
+
     yPos = yPos - 35
     
     -- Bar Colors

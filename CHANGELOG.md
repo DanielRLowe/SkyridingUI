@@ -1,5 +1,15 @@
 # SkyridingUI Changelog
 
+## Version 1.4.11 — Max Speed Marker Always Visible
+
+### New Features
+- **Max Speed Marker Always Visible**: Added option to keep the max speed marker visible even when speed bar fills past it
+  - New "Marker Always Visible" checkbox in the Horizontal tab
+  - When enabled, marker renders on top of the speed bar fill instead of behind it
+  - Useful for always seeing the max unboosted speed reference point
+
+---
+
 ## Version 1.4.10 — Grounded Hiding & Max Speed Marker
 
 ### New Features

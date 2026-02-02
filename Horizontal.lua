@@ -75,6 +75,7 @@ local defaults = {
     showSurgeBar = true,
     showSecondWindBars = true,
     showSpeedMaxMarker = true,
+    maxSpeedMarkerAlwaysVisible = false,
 }
 
 --------------------------------------------------------------------------------
@@ -298,9 +299,15 @@ local function UpdateLayout()
         speedBar:Hide()
     end
 
-    -- Speed max marker visibility
+    -- Speed max marker visibility and draw layer
     if SkyridingUIDB.showSpeedBar ~= false and SkyridingUIDB.showSpeedMaxMarker ~= false then
         speedMaxMarker:Show()
+        -- Set draw layer based on always visible setting
+        if SkyridingUIDB.maxSpeedMarkerAlwaysVisible then
+            speedMaxMarker:SetDrawLayer("OVERLAY")
+        else
+            speedMaxMarker:SetDrawLayer("BACKGROUND")
+        end
     else
         speedMaxMarker:Hide()
     end
